@@ -1,0 +1,35 @@
+{
+  "name": "create-admin-starter",
+  "version": "0.1.0",
+  "description": "Create a new admin app from Admin Starter: Vite, React, TanStack Router, TanStack Query + orval, MSW, i18n, JWT auth.",
+  "type": "module",
+  "bin": {
+    "create-admin-starter": "index.mjs"
+  },
+  "files": [
+    "index.mjs",
+    "src",
+    "template"
+  ],
+  "scripts": {
+    "sync": "node scripts/sync-template.mjs",
+    "smoke": "node scripts/smoke-test.mjs",
+    "prepack": "node scripts/sync-template.mjs"
+  },
+  "engines": {
+    "node": ">=20.19"
+  },
+  "keywords": [
+    "create",
+    "starter",
+    "template",
+    "vite",
+    "react",
+    "admin"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "@clack/prompts": "^1.8.1",
+    "picocolors": "^1.1.1"
+  }
+}

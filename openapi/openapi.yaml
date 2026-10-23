@@ -1,0 +1,372 @@
+# API contract shared by FE and BE. Agree on changes here first, then:
+#   npm run gen:api   → regenerates src/api/generated (types, hooks, mocks)
+openapi: 3.1.0
+info:
+  title: Admin Starter API
+  version: 1.0.0
+  description: "Sample contract: JWT auth (access + refresh token) and user CRUD."
+
+tags:
+  - name: auth
+  - name: users
+  - name: dashboard
+
+security:
+  - bearerAuth: []
+
+paths:
+  /auth/login:
+    post:
+      tags: [auth]
+      operationId: login
+      summary: Sign in with email and password
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LoginRequest" }
+      responses:
+        "200":
+          description: Signed in
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LoginResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
+
+  /auth/refresh:
+    post:
+      tags: [auth]
+      operationId: refreshToken
+      summary: Exchange a refresh token for a new token pair
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RefreshRequest" }
+      responses:
+        "200":
+          description: New token pair
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AuthTokens" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /auth/logout:
+    post:
+      tags: [auth]
+      operationId: logout
+      summary: Revoke the refresh token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RefreshRequest" }
+      responses:
+        "204": { description: Signed out }
+
+  /auth/me:
+    get:
+      tags: [auth]
+      operationId: getMe
+      summary: The signed-in user
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/User" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /users:
+    get:
+      tags: [users]
+      operationId: listUsers
+      summary: Search, filter, sort and page users
+      parameters:
+        - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
+        - {
+            name: pageSize,
+            in: query,
+            schema: { type: integer, minimum: 1, maximum: 100, default: 10 },
+          }
+        - name: search
+          in: query
+          description: Matches name or email, case-insensitive
+          schema: { type: string }
+        - { name: role, in: query, schema: { $ref: "#/components/schemas/UserRole" } }
+        - { name: status, in: query, schema: { $ref: "#/components/schemas/UserStatus" } }
+        - { name: sortBy, in: query, schema: { $ref: "#/components/schemas/UserSortField" } }
+        - { name: sortOrder, in: query, schema: { $ref: "#/components/schemas/SortOrder" } }
+      responses:
+        "200":
+          description: One page of users
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/UserListResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+    post:
+      tags: [users]
+      operationId: createUser
+      summary: Create a user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UserCreate" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/User" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
+
+  /users/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string } }
+    get:
+      tags: [users]
+      operationId: getUser
+      summary: Get one user
+      responses:
+        "200":
+          description: The user
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/User" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    patch:
+      tags: [users]
+      operationId: updateUser
+      summary: Update some fields of a user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UserUpdate" }
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/User" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
+    delete:
+      tags: [users]
+      operationId: deleteUser
+      summary: Delete a user
+      responses:
+        "204": { description: Deleted }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /dashboard/summary:
+    get:
+      tags: [dashboard]
+      operationId: getDashboardSummary
+      summary: User totals, monthly sign-ups, roles and the newest users
+      parameters:
+        - name: months
+          in: query
+          description: How many months of sign-ups to return, ending with the current month
+          schema: { type: integer, enum: [6, 12], default: 6 }
+      responses:
+        "200":
+          description: Dashboard numbers
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DashboardSummary" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  responses:
+    Unauthorized:
+      description: Missing, invalid or expired token / wrong credentials
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
+    ValidationFailed:
+      description: Request body failed validation; `errors` lists the fields
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  schemas:
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string, minLength: 6 }
+
+    RefreshRequest:
+      type: object
+      required: [refreshToken]
+      properties:
+        refreshToken: { type: string }
+
+    AuthTokens:
+      type: object
+      required: [accessToken, refreshToken, expiresIn]
+      properties:
+        accessToken: { type: string }
+        refreshToken: { type: string }
+        expiresIn:
+          type: integer
+          description: Access token lifetime in seconds
+
+    LoginResponse:
+      allOf:
+        - $ref: "#/components/schemas/AuthTokens"
+        - type: object
+          required: [user]
+          properties:
+            user: { $ref: "#/components/schemas/User" }
+
+    UserRole:
+      type: string
+      enum: [admin, editor, viewer]
+
+    UserStatus:
+      type: string
+      enum: [active, inactive, invited]
+
+    UserSortField:
+      type: string
+      enum: [name, email, createdAt]
+
+    SortOrder:
+      type: string
+      enum: [asc, desc]
+
+    User:
+      type: object
+      required: [id, name, email, role, status, createdAt]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        email: { type: string, format: email }
+        role: { $ref: "#/components/schemas/UserRole" }
+        status: { $ref: "#/components/schemas/UserStatus" }
+        avatarUrl: { type: [string, "null"], format: uri }
+        createdAt: { type: string, format: date-time }
+
+    UserCreate:
+      type: object
+      required: [name, email, role]
+      properties:
+        name: { type: string, minLength: 2, maxLength: 100 }
+        email: { type: string, format: email }
+        role: { $ref: "#/components/schemas/UserRole" }
+        status: { $ref: "#/components/schemas/UserStatus" }
+
+    UserUpdate:
+      type: object
+      properties:
+        name: { type: string, minLength: 2, maxLength: 100 }
+        email: { type: string, format: email }
+        role: { $ref: "#/components/schemas/UserRole" }
+        status: { $ref: "#/components/schemas/UserStatus" }
+
+    PageMeta:
+      type: object
+      required: [page, pageSize, total, totalPages]
+      properties:
+        page: { type: integer }
+        pageSize: { type: integer }
+        total: { type: integer }
+        totalPages: { type: integer }
+
+    UserListResponse:
+      type: object
+      required: [items, meta]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/User" }
+        meta: { $ref: "#/components/schemas/PageMeta" }
+
+    UserTotals:
+      type: object
+      required: [total, active, invited, inactive]
+      properties:
+        total: { type: integer }
+        active: { type: integer }
+        invited: { type: integer }
+        inactive: { type: integer }
+
+    MonthlyCount:
+      type: object
+      required: [month, count]
+      properties:
+        month:
+          type: string
+          description: Month as yyyy-MM, e.g. "2026-10"
+        count: { type: integer }
+
+    RoleCount:
+      type: object
+      required: [role, count]
+      properties:
+        role: { $ref: "#/components/schemas/UserRole" }
+        count: { type: integer }
+
+    DashboardSummary:
+      type: object
+      required: [totals, newThisMonth, newLastMonth, signups, byRole, recentUsers]
+      properties:
+        totals: { $ref: "#/components/schemas/UserTotals" }
+        newThisMonth: { type: integer }
+        newLastMonth: { type: integer }
+        signups:
+          type: array
+          description: Oldest month first
+          items: { $ref: "#/components/schemas/MonthlyCount" }
+        byRole:
+          type: array
+          items: { $ref: "#/components/schemas/RoleCount" }
+        recentUsers:
+          type: array
+          description: The 5 newest users
+          items: { $ref: "#/components/schemas/User" }
+
+    FieldError:
+      type: object
+      required: [field, message]
+      properties:
+        field:
+          type: string
+          description: Body property name, e.g. "email"
+        message: { type: string }
+
+    ErrorResponse:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          description: Machine-readable, e.g. UNAUTHORIZED, NOT_FOUND, VALIDATION_FAILED
+        message:
+          type: string
+          description: Human-readable, safe to show
+        errors:
+          type: array
+          items: { $ref: "#/components/schemas/FieldError" }

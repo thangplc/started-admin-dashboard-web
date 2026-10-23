@@ -1,0 +1,5 @@
+dist
+src/routeTree.gen.ts
+package-lock.json
+src/api/generated
+packages/create-admin-starter/template
